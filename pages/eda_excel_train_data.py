@@ -18,63 +18,71 @@ def main():
 
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
     model_name = st.text_input("Enter the model name for AutoTokenizer")
+    sheet_name = st.text_input("Enter sheet name of the excel file if excel file has multiple sheets")
     hf_token = st.text_input("Enter the huggingface token for gated Models")
-
 
     if uploaded_file is not None and model_name:
         # Read the original file
-        df_original = pd.read_excel(uploaded_file)
-        
-        # Create two duplicates
-        df_copy1, df_copy2 = duplicate_excel(df_original)
+        df_original = pd.read_excel(uploaded_file, sheet_name = sheet_name if sheet_name else 0)
 
-        st.success("Excel file duplicated successfully!")
-
-        # Display original and duplicated dataframes
+        # Display original dataframe
         st.subheader("Original DataFrame")
         st.dataframe(df_original)
 
-        st.subheader("Duplicate 1")
-        st.dataframe(df_copy1)
+        st.success("Excel file uploaded successfully!")
 
-        st.subheader("Duplicate 2")
-        st.dataframe(df_copy2)
-
-        # Column selection
-        st.subheader("Column Selection")
+        # Column selection for comparison
         all_columns = df_original.columns.tolist()
+        st.subheader("Column Selection for Display")
         selected_columns = st.multiselect("Select columns to display", all_columns)
 
         if selected_columns:
-            st.subheader("Selected Columns from All DataFrames")
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.write("Original")
-                st.dataframe(df_original[selected_columns])
-            
-            with col2:
-                st.write("Duplicate 1")
-                st.dataframe(df_copy1[selected_columns])
-            
-            with col3:
-                st.write("Duplicate 2")
-                st.dataframe(df_copy2[selected_columns])
-
             # Tokenizer and token length calculation
             tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
             token_lengths = df_original[selected_columns].map(lambda x: len(tokenizer.tokenize(str(x))))
             
-            # if token_lengths are longer than 1000, print the entry
-            st.subheader("Entries with token length over 1000")
-            st.write(df_original[selected_columns][token_lengths > 1000])
+            
             avg_token_length = token_lengths.mean()
             over_1000_token_ratio = (token_lengths > 1000).mean()
 
             st.subheader("Token Length Analysis")
             st.write(f"Average token length: {avg_token_length}")
+            
+            # check if selected columns are more than 3
+            if len(selected_columns) > 1:
+                # Calculate token length for each selected column
+                token_lengths = {}
+                for column in selected_columns:
+                    token_lengths[column] = df_original[column].apply(lambda x: len(tokenizer.tokenize(str(x))))
+                
+                # Add token lengths to the dataframe
+                for column in selected_columns:
+                    df_original[f'{column}_token_length'] = token_lengths[column]
+                
+                # Calculate total token length for each row
+                df_original['total_token_length'] = df_original[[f'{col}_token_length' for col in selected_columns]].sum(axis=1)
+                
+                # Filter rows with total token length over 3000
+                df_over_3000 = df_original[df_original['total_token_length'] > 3000]
+                
+                st.subheader("Rows with total token length over 3000")
+                st.dataframe(df_over_3000)
+                
+                # Display updated dataframe with token lengths
+                st.subheader("Updated DataFrame with Token Lengths")
+                st.dataframe(df_original)
             st.write(f"Ratio of entries with token length over 1000 token: {over_1000_token_ratio}")
+        
+        # Create two duplicates
+        df_copy1, df_copy2 = duplicate_excel(df_original)
+        
+        # Display the duplicated dataframes
+        st.subheader("Duplicated DataFrame 1")
+        st.dataframe(df_copy1)
+
+        st.subheader("Duplicated DataFrame 2")
+        st.dataframe(df_copy2)
 
         # Download options
         st.subheader("Download Options")

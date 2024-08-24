@@ -22,7 +22,7 @@ def find_duplicates(df1, df2, column1, column2):
     """
     return set(df1[column1]).intersection(set(df2[column2]))
 
-st.title('Excel File Analyzer')
+st.title('Check if train data contains TC')
 
 # File uploader
 uploaded_files = st.file_uploader("Choose Excel files", type="xlsx", accept_multiple_files=True)

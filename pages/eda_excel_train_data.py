@@ -68,25 +68,8 @@ def main():
 
         # Column selection for comparison
         all_columns = df_original.columns.tolist()
-        st.subheader("Column Selection for Comparison")
-        answer_column = st.selectbox("Select the answer column", all_columns)
-        candidate_columns = st.multiselect("Select the candidate columns (3)", all_columns, max_selections=3)
-        output_column = st.selectbox("Select the output column", all_columns)
 
-        if st.button("Compare and Modify Columns"):
-            if len(candidate_columns) <= 3:
-                df_modified = compare_and_modify_columns(df_original.copy(), answer_column, candidate_columns, output_column)
-                st.subheader("Modified DataFrame")
-                st.dataframe(df_modified)
-
-                # Download option for modified dataframe
-                st.download_button(
-                    label="Download Modified DataFrame",
-                    data=to_excel(df_modified),
-                    file_name="modified_dataframe.xlsx",
-                )
-            else:
-                st.error("Please select exactly 3 candidate columns.")
+        
 
         # Column selection for display
         st.subheader("Column Selection for Display")
@@ -103,7 +86,6 @@ def main():
             st.subheader("Token Length Analysis")
             st.write(f"Average token length: {avg_token_length}")
             
-            # check if selected columns are more than 3
             if len(selected_columns) > 1:
                 # Calculate token length for each selected column
                 token_lengths = {}

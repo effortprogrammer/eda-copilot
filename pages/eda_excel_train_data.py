@@ -13,8 +13,43 @@ def to_excel(df):
     processed_data = output.getvalue()
     return processed_data
 
+def compare_and_modify_columns(df, answer_col, candidate_cols, output_col):
+    number_columns = {1: [], 2: [], 3: []}
+
+    for col in df.columns:
+        if '1' in col: 
+            number_columns[1].append(col)
+        if '2' in col: 
+            number_columns[2].append(col)
+        if '3' in col: 
+            number_columns[3].append(col)
+    
+    # Let user select columns for each number
+    selected_columns = {}
+    for num, cols in number_columns.items():
+        if cols:
+            selected_col = st.selectbox(f"Select column for number {num}", cols)
+            selected_columns[num] = selected_col
+    
+    for idx, row in df.iterrows():
+        answer = row[answer_col]
+        for candidate_col in candidate_cols:
+            if row[candidate_col] == answer:
+                # Check if the candidate_col contains 1, 2, or 3
+                for num in [1, 2, 3]:
+                    if str(num) in candidate_col and num in selected_columns:
+                        # Move the answer to the selected column
+                        tmp = df.at[idx, selected_columns[num]]
+                        df.at[idx, selected_columns[num]] = answer
+                        df.at[idx, candidate_col] = tmp       
+                break
+        else:
+            # If no match found, add answer to the output column
+            df.at[idx, output_col] = row[answer_col]
+    return df
+
 def main():
-    st.title('Excel File Duplicator and Column Selector')
+    st.title('Excel File Processor with Column Comparison')
 
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
     model_name = st.text_input("Enter the model name for AutoTokenizer")
@@ -33,15 +68,34 @@ def main():
 
         # Column selection for comparison
         all_columns = df_original.columns.tolist()
+        st.subheader("Column Selection for Comparison")
+        answer_column = st.selectbox("Select the answer column", all_columns)
+        candidate_columns = st.multiselect("Select the candidate columns (3)", all_columns, max_selections=3)
+        output_column = st.selectbox("Select the output column", all_columns)
+
+        if st.button("Compare and Modify Columns"):
+            if len(candidate_columns) <= 3:
+                df_modified = compare_and_modify_columns(df_original.copy(), answer_column, candidate_columns, output_column)
+                st.subheader("Modified DataFrame")
+                st.dataframe(df_modified)
+
+                # Download option for modified dataframe
+                st.download_button(
+                    label="Download Modified DataFrame",
+                    data=to_excel(df_modified),
+                    file_name="modified_dataframe.xlsx",
+                )
+            else:
+                st.error("Please select exactly 3 candidate columns.")
+
+        # Column selection for display
         st.subheader("Column Selection for Display")
         selected_columns = st.multiselect("Select columns to display", all_columns)
 
         if selected_columns:
-            
             # Tokenizer and token length calculation
             tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
             token_lengths = df_original[selected_columns].map(lambda x: len(tokenizer.tokenize(str(x))))
-            
             
             avg_token_length = token_lengths.mean()
             over_1000_token_ratio = (token_lengths > 1000).mean()

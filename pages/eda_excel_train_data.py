@@ -6,6 +6,14 @@ from transformers import AutoTokenizer
 def duplicate_excel(df):
     return df.copy(), df.copy()
 
+def get_sheet_names(file):
+    return pd.ExcelFile(file).sheet_names
+
+def read_excel(file, sheet_name=None):
+    if sheet_name:
+        return pd.read_excel(file, sheet_name=sheet_name)
+    return pd.read_excel(file)
+
 def to_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -53,21 +61,25 @@ def main():
 
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
     model_name = st.text_input("Enter the model name for AutoTokenizer")
-    sheet_name = st.text_input("Enter sheet name of the excel file if excel file has multiple sheets")
     hf_token = st.text_input("Enter the huggingface token for gated Models")
 
     if uploaded_file is not None and model_name:
-        # Read the original file
-        df_original = pd.read_excel(uploaded_file, sheet_name = sheet_name if sheet_name else 0)
+        sheet_names = get_sheet_names(uploaded_file)
+    
+        if len(sheet_names) > 1:
+            selected_sheet = st.selectbox("Select a sheet", sheet_names)
+            df = read_excel(uploaded_file, sheet_name=selected_sheet)
+        else:
+            df = read_excel(uploaded_file)
 
         # Display original dataframe
         st.subheader("Original DataFrame")
-        st.dataframe(df_original)
+        st.dataframe(df)
 
         st.success("Excel file uploaded successfully!")
 
         # Column selection for comparison
-        all_columns = df_original.columns.tolist()
+        all_columns = df.columns.tolist()
 
         
 
@@ -78,7 +90,7 @@ def main():
         if selected_columns:
             # Tokenizer and token length calculation
             tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
-            token_lengths = df_original[selected_columns].map(lambda x: len(tokenizer.tokenize(str(x))))
+            token_lengths = df[selected_columns].map(lambda x: len(tokenizer.tokenize(str(x))))
             
             avg_token_length = token_lengths.mean()
             over_1000_token_ratio = (token_lengths > 1000).mean()
@@ -90,28 +102,28 @@ def main():
                 # Calculate token length for each selected column
                 token_lengths = {}
                 for column in selected_columns:
-                    token_lengths[column] = df_original[column].apply(lambda x: len(tokenizer.tokenize(str(x))))
+                    token_lengths[column] = df[column].apply(lambda x: len(tokenizer.tokenize(str(x))))
                 
                 # Add token lengths to the dataframe
                 for column in selected_columns:
-                    df_original[f'{column}_token_length'] = token_lengths[column]
+                    df[f'{column}_token_length'] = token_lengths[column]
                 
                 # Calculate total token length for each row
-                df_original['total_token_length'] = df_original[[f'{col}_token_length' for col in selected_columns]].sum(axis=1)
+                df['total_token_length'] = df[[f'{col}_token_length' for col in selected_columns]].sum(axis=1)
                 
                 # Filter rows with total token length over 3000
-                df_over_3000 = df_original[df_original['total_token_length'] > 3000]
+                df_over_3000 = df[df['total_token_length'] > 3000]
                 
                 st.subheader("Rows with total token length over 3000")
                 st.dataframe(df_over_3000)
                 
                 # Display updated dataframe with token lengths
                 st.subheader("Updated DataFrame with Token Lengths")
-                st.dataframe(df_original)
+                st.dataframe(df)
             st.write(f"Ratio of entries with token length over 1000 token: {over_1000_token_ratio}")
         
         # Create two duplicates
-        df_copy1, df_copy2 = duplicate_excel(df_original)
+        df_copy1, df_copy2 = duplicate_excel(df)
         
         # Display the duplicated dataframes
         st.subheader("Duplicated DataFrame 1")
@@ -128,7 +140,7 @@ def main():
         with col1:
             st.download_button(
                 label="Download Original",
-                data=to_excel(df_original),
+                data=to_excel(df),
                 file_name="original.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )

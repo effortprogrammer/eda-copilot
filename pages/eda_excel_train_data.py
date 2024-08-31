@@ -86,7 +86,8 @@ def main():
         # Column selection for display
         st.subheader("Column Selection for Display")
         selected_columns = st.multiselect("Select columns to display", all_columns)
-
+        # put desired token length here
+        token_length = st.number_input("Enter the desired token length", value=3000)
         if selected_columns:
             # Tokenizer and token length calculation
             tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
@@ -111,55 +112,20 @@ def main():
                 # Calculate total token length for each row
                 df['total_token_length'] = df[[f'{col}_token_length' for col in selected_columns]].sum(axis=1)
                 
-                # Filter rows with total token length over 3000
-                df_over_3000 = df[df['total_token_length'] > 3000]
+                # Filter rows with total token length over specified token length
+                if 'total_token_length' in df.columns:
+                    df_over_token_length = df[df['total_token_length'] > token_length]
+                    st.write(f"Number of rows with total token length over {token_length}: {len(df_over_token_length)}")
+                else:
+                    st.write("Total token length column not found in the DataFrame.")
                 
-                st.subheader("Rows with total token length over 3000")
-                st.dataframe(df_over_3000)
-                
-                # Display updated dataframe with token lengths
-                st.subheader("Updated DataFrame with Token Lengths")
-                st.dataframe(df)
+                # Display dataframe that overpasses the token length
+                st.subheader("DataFrame with Total Token Length Over Specified Token Length")
+                st.dataframe(df_over_token_length)
             st.write(f"Ratio of entries with token length over 1000 token: {over_1000_token_ratio}")
-        
-        # Create two duplicates
-        df_copy1, df_copy2 = duplicate_excel(df)
-        
-        # Display the duplicated dataframes
-        st.subheader("Duplicated DataFrame 1")
-        st.dataframe(df_copy1)
-
-        st.subheader("Duplicated DataFrame 2")
-        st.dataframe(df_copy2)
-
-        # Download options
-        st.subheader("Download Options")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.download_button(
-                label="Download Original",
-                data=to_excel(df),
-                file_name="original.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-        with col2:
-            st.download_button(
-                label="Download Duplicate 1",
-                data=to_excel(df_copy1),
-                file_name="duplicate1.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-        with col3:
-            st.download_button(
-                label="Download Duplicate 2",
-                data=to_excel(df_copy2),
-                file_name="duplicate2.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
+            # I want to see the whole dataframe with the token length 
+            st.subheader("DataFrame with Token Length")
+            st.dataframe(df)
+            
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
 ### Introduction
 
-The reason that I made this application was to save my time when preprocessing the train data. 
+The reason that I made this application was to save my time when preprocessing the train data or find incorrect values in the data. 
 
 ### How-to-do
 

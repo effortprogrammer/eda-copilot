@@ -4,7 +4,7 @@ import io
 import os
 from PIL import Image, ImageDraw
 import json
-
+# test 
 def extract_file_structure(zip_file):
     file_structure = {}
     with zipfile.ZipFile(zip_file, 'r') as z:

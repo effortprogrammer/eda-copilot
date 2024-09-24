@@ -114,6 +114,5 @@ def main():
     else:
         st.write("Please upload a ZIP file.")
 
-print("commit-test")
 if __name__ == "__main__":
     main()
